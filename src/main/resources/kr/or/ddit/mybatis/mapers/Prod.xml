@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.prod.dao.ProdDAO">
+	<sql id="searchFrag">
+		<trim prefix="WHERE" suffixOverrides="AND">
+			<if test="not detailCondition.empty">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(detailCondition.prodLgu)">
+					PROD_LGU = #{detailCondition.prodLgu} AND 
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(detailCondition.prodBuyer)">
+					PROD_BUYER = #{detailCondition.prodBuyer} AND 
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(detailCondition.prodName)">
+					INSTR(PROD_NAME, #{detailCondition.prodName}) > 0 AND 
+				</if>
+			</if>
+		</trim>
+	</sql>
+	
+	
+	
+<!-- 	codeFragment 사용 -->
+	<select id="selectTotalRecord" resultType="int" parameterType="kr.or.ddit.common.paging.PaginationInfo">
+		SELECT COUNT(*)
+		FROM PROD
+		<include refid="searchFrag"/>
+	</select>
+	
+	<select id="selectProdList" resultType="ProdVO" parameterType="kr.or.ddit.common.paging.PaginationInfo">
+		SELECT B.*
+		FROM(
+			SELECT ROWNUM RNUM,A.*
+			FROM(
+			 SELECT 
+				 PROD_ID            ,
+				 PROD_NAME          ,
+				 PROD_LGU           ,
+				 PROD_BUYER         ,
+				 PROD_PRICE         ,
+				 PROD_MILEAGE       
+			 FROM PROD
+			 <include refid="searchFrag"/>
+			 ORDER BY PROD_LGU, PROD_ID DESC
+			 ) A
+		 )B
+		 <![CDATA[
+		 	WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		 ]]>
+	</select>
+	
+	<resultMap type="ProdVO" id="prodMap" autoMapping="true">
+		<id property="prodId" column="PROD_ID"/>
+		<association property="lprod" javaType="hashmap">
+			<result property="lprodGu" column="LPROD_GU"/>
+			<result property="lprodNm" column="LPROD_NM"/>
+		</association>
+		<association property="buyer" javaType="BuyerVO" autoMapping="true">
+			<id property="buyerId" column="BUYER_ID"/>
+		</association>
+	</resultMap>
+	
+	
+	<select id="selectProd" parameterType="string" resultMap="prodMap">
+		SELECT
+		    prod_id, prod_name, prod_lgu,
+		    prod_buyer, prod_cost, prod_price,
+		    prod_sale, prod_outline, prod_detail,
+		    prod_img, prod_totalstock, prod_insdate,
+		    prod_properstock, prod_size, prod_color,
+		    prod_delivery, prod_unit, prod_qtyin,
+		    prod_qtysale, prod_mileage,
+		    lprod_gu ,lprod_nm ,
+		    buyer_id, buyer_Name ,buyer_add1, buyer_comtel,buyer_charger
+	    from (prod inner join lprod on(prod_lgu=lprod_gu))inner join buyer on(prod_buyer=buyer_id)
+		where prod_id=#{prodId}
+	</select>
+	
+	
+	<insert id="insertProd" parameterType="ProdVO">
+		<selectKey order="BEFORE" resultType="string" keyProperty="prodId" >
+			SELECT #{prodLgu} || LPAD(NVL(TO_NUMBER(SUBSTR(MAX(PROD_ID),5)),0)+1,6,'0')
+			FROM PROD
+			WHERE PROD_LGU = #{prodLgu}
+		</selectKey>
+		INSERT INTO prod (
+			    prod_id,
+			    prod_name,
+			    prod_lgu,
+			    prod_buyer,
+			    prod_cost,
+			    prod_price,
+			    prod_sale,
+			    prod_outline,
+			    prod_detail,
+			    prod_img,
+			    prod_totalstock,
+			    prod_insdate,
+			    prod_properstock,
+			    prod_size,
+			    prod_color,
+			    prod_delivery,
+			    prod_unit,
+			    prod_qtyin,
+			    prod_qtysale,
+			    prod_mileage
+			) VALUES (
+			   #{prodId,jdbcType=VARCHAR}
+			,#{prodName,jdbcType=VARCHAR}
+			,#{prodLgu,jdbcType=CHAR}
+			,#{prodBuyer,jdbcType=CHAR}
+			,#{prodCost,jdbcType=NUMERIC}
+			,#{prodPrice,jdbcType=NUMERIC}
+			,#{prodSale,jdbcType=NUMERIC}
+			,#{prodOutline,jdbcType=VARCHAR}
+			,#{prodDetail,jdbcType=CLOB}
+			,#{prodImg,jdbcType=VARCHAR}
+			,#{prodTotalstock,jdbcType=NUMERIC}
+			,SYSDATE
+			,#{prodProperstock,jdbcType=NUMERIC}
+			,#{prodSize,jdbcType=VARCHAR}
+			,#{prodColor,jdbcType=VARCHAR}
+			,#{prodDelivery,jdbcType=VARCHAR}
+			,#{prodUnit,jdbcType=VARCHAR}
+			,#{prodQtyin,jdbcType=NUMERIC}
+			,#{prodQtysale,jdbcType=NUMERIC}
+			,#{prodMileage,jdbcType=NUMERIC}
+			)
+	</insert>
+	<update id="updateProd" parameterType="ProdVO" >
+	UPDATE prod
+		SET                                                                         
+		    prod_name = 		     #{prodName,jdbcType=VARCHAR}                   ,
+			 prod_cost = 		     #{prodCost,jdbcType=NUMERIC}                   ,
+			 prod_price =            #{prodPrice,jdbcType=NUMERIC}                  ,
+			 prod_sale =             #{prodSale,jdbcType=NUMERIC}                   ,
+			 prod_outline =          #{prodOutline,jdbcType=VARCHAR}                ,
+			 prod_detail =           #{prodDetail,jdbcType=CLOB}                    ,
+			 prod_img =              #{prodImg,jdbcType=VARCHAR}                    ,
+			 prod_totalstock =       #{prodTotalstock,jdbcType=NUMERIC}             ,
+			 prod_insdate =          #{prodInsdate,jdbcType=DATE}                   ,
+			 prod_properstock =      #{prodProperstock,jdbcType=NUMERIC}            ,
+			 prod_size =             #{prodSize,jdbcType=VARCHAR}                   ,
+			 prod_color =            #{prodColor,jdbcType=VARCHAR}                  ,
+			 prod_delivery =         #{prodDelivery,jdbcType=VARCHAR}               ,
+			 prod_unit =             #{prodUnit,jdbcType=VARCHAR}                   ,
+			 prod_qtyin =            #{prodQtyin,jdbcType=NUMERIC}                  ,
+			 prod_qtysale =          #{prodQtysale,jdbcType=NUMERIC}                ,
+			 prod_mileage =          #{prodMileage,jdbcType=NUMERIC}                
+		WHERE                                                                       
+		        prod_id = #{prodId,jdbcType=VARCHAR}
+	</update>
+</mapper>
